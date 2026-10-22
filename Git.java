@@ -112,6 +112,39 @@ public class Git{ //rename Only Filhasher to Git
         System.out.println(backup);
         System.out.println(updatingIndex);
     }
+
+    public static String createTree(ArrayList<String> workingList, String dirPath) throws IOException {
+        String treeContent = "";
+        for (int i = 0; i < workingList.size(); i++) {
+            String[] parts = workingList.get(i).split(" ");
+            String type = parts[0];
+            String hash = parts[1];
+            String entryPath = parts[2];
+            int lastSlash = entryPath.lastIndexOf("/");
+            String entryDir = entryPath.substring(0, lastSlash);
+            String name = entryPath.substring(lastSlash + 1);
+            if (entryDir.equals(dirPath)) {
+                treeContent = treeContent + type + " " + hash + " " + name + "\n";
+            }
+        }
+
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("SHA-1 is not avaliable", e);
+        }
+        String treeHash = HexFormat.of().formatHex(digest.digest(treeContent.getBytes()));
+
+        File treeFile = new File("git/objects", treeHash);
+        if (!treeFile.exists()) {
+            FileWriter writer = new FileWriter(treeFile);
+            writer.write(treeContent);
+            writer.close();
+        }
+        return treeHash;
+    }
+
     public static String init(String[] args) { //change output to a string that you return
         try {
             // TODO (FH-1): create the JavaFileSystem directory
