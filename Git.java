@@ -8,6 +8,7 @@ import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HexFormat;
 
 public class Git{ //rename Only Filhasher to Git
@@ -68,12 +69,46 @@ public class Git{ //rename Only Filhasher to Git
     }
 
     public static void updateIndexFile(String filePath) throws IOException {
+        Path path = Path.of(filePath);
+        String fullPath = path.toAbsolutePath().toString();
+        String rootPath = Path.of("").toAbsolutePath().toString();
+        fullPath = path.toAbsolutePath().normalize().toString();
+        if (fullPath.startsWith(rootPath + File.separator)) {
+            fullPath = fullPath.substring(rootPath.length() + 1);
+        }
+        fullPath = fullPath.replace("\\", "/");
         String hash = hashFile(filePath);//changed sha1hash to hash
-        File backup = new File("git/index/" + hash + ".txt");
-        FileWriter updatingIndex = new FileWriter(("git/index"));
+        String output = hash + " " + fullPath;
+        Path indexPath = Path.of("git/index");
+        if(Files.exists(indexPath)){
+            ArrayList<String> lines = new ArrayList<>(Files.readAllLines(indexPath));
+            boolean changed = false;
+            for (int i = 0; i < lines.size(); i++) {
+                String line = lines.get(i);
+                if (line.equals(output)) {
+                    return;
+                }
+                String linePath = line.substring(line.indexOf(" ") + 1);
+                if (linePath.equals(fullPath)) {
+                    lines.set(i, output);
+                    changed = true;
+                }
+            }
+            if (changed) {
+                FileWriter rewriteIndex = new FileWriter("git/index");
+                for (int i = 0; i < lines.size(); i++) {
+                    rewriteIndex.write(lines.get(i) + System.lineSeparator());
+                }
+                rewriteIndex.close();
+                return;
+            }
+
+        }
+        FileWriter updatingIndex = new FileWriter(("git/index"), true);
         // String content = new String(Files.readAllBytes(Paths.get(filePath)));
-        updatingIndex.write(hash + " " + filePath);
+        updatingIndex.write(hash + " " + fullPath+System.lineSeparator());
         updatingIndex.close();
+        File backup = new File("git/index/" + hash + ".txt");
         System.out.println(backup);
         System.out.println(updatingIndex);
     }
