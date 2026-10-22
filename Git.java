@@ -145,6 +145,71 @@ public class Git{ //rename Only Filhasher to Git
         return treeHash;
     }
 
+    public static String createTreeFromIndex() throws IOException {
+        ArrayList<String> workingList = new ArrayList<>();
+        ArrayList<String> indexLines = new ArrayList<>(Files.readAllLines(Path.of("git/index")));
+        for (int i = 0; i < indexLines.size(); i++) {
+            if (!indexLines.get(i).isBlank()) {
+                workingList.add("blob " + indexLines.get(i));
+            }
+        }
+
+        for (int i = 1; i < workingList.size(); i++) {
+            String current = workingList.get(i);
+            String currentPath = current.split(" ")[2];
+            int j = i - 1;
+            while (j >= 0 && workingList.get(j).split(" ")[2].compareToIgnoreCase(currentPath) > 0) {
+                workingList.set(j + 1, workingList.get(j));
+                j--;
+            }
+            workingList.set(j + 1, current);
+        }
+
+        while (workingList.size() > 1) {
+            String deepestDir = "";
+            int deepestCount = 0;
+            for (int i = 0; i < workingList.size(); i++) {
+                String entryPath = workingList.get(i).split(" ")[2];
+                int slashCount = 0;
+                for (int k = 0; k < entryPath.length(); k++) {
+                    if (entryPath.charAt(k) == '/') {
+                        slashCount++;
+                    }
+                }
+                if (slashCount > deepestCount) {
+                    deepestCount = slashCount;
+                    deepestDir = entryPath.substring(0, entryPath.lastIndexOf("/"));
+                }
+            }
+            if (deepestCount == 0) {
+                break;
+            }
+
+            String treeHash = createTree(workingList, deepestDir);
+
+            ArrayList<String> newList = new ArrayList<>();
+            boolean added = false;
+            for (int i = 0; i < workingList.size(); i++) {
+                String entry = workingList.get(i);
+                String entryPath = entry.split(" ")[2];
+                String entryDir = "";
+                if (entryPath.contains("/")) {
+                    entryDir = entryPath.substring(0, entryPath.lastIndexOf("/"));
+                }
+                if (entryDir.equals(deepestDir)) {
+                    if (!added) {
+                        newList.add("tree " + treeHash + " " + deepestDir);
+                        added = true;
+                    }
+                } else {
+                    newList.add(entry);
+                }
+            }
+            workingList = newList;
+        }
+        return workingList.get(0).split(" ")[1];
+    }
+
     public static String init(String[] args) { //change output to a string that you return
         try {
             // TODO (FH-1): create the JavaFileSystem directory
